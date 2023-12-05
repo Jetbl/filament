@@ -70,8 +70,16 @@ pub struct Opts {
     pub check: bool,
 
     /// output the interface.json for the input program
-    #[argh(switch, long = "dump-interface")]
-    pub dump_interface: bool,
+    #[argh(option, long = "dump-interface-file")]
+    pub dump_interface_file: Option<PathBuf>,
+
+    /// output the dep.file for the input program
+    #[argh(option, long = "dump-dep-file")]
+    pub dump_dep_file: Option<PathBuf>,
+
+    /// the output file
+    #[argh(option, long = "out")]
+    pub out: Option<PathBuf>,
 
     /// set log level
     #[argh(option, long = "log", default = "log::LevelFilter::Warn")]

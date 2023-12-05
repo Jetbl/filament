@@ -14,7 +14,7 @@ pub struct Resolver {
     // Location of the base file
     input: PathBuf,
     // Files that have already been imported
-    already_imported: HashSet<PathBuf>,
+    pub already_imported: HashSet<PathBuf>,
 }
 
 impl From<&cmdline::Opts> for Resolver {

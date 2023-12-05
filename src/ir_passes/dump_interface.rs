@@ -1,3 +1,5 @@
+use std::io::Write;
+
 use crate::ir_passes::lower::max_states;
 use fil_ir::{self as ir, Ctx, DisplayCtx};
 use itertools::Itertools;
@@ -7,6 +9,10 @@ pub struct DumpInterface;
 impl DumpInterface {
     /// Print out the interface of the main component in JSON format
     pub fn print(ctx: &ir::Context) {
+        Self::write(ctx, std::io::stdout().lock())
+    }
+
+    pub fn write<W: Write>(ctx: &ir::Context, mut w: W) {
         let entrypoint = ctx
             .entrypoint
             .unwrap_or_else(|| panic!("No entrypoint found."));
@@ -88,8 +94,8 @@ impl DumpInterface {
         let outputs = main.outputs().map(pd_to_info).collect_vec().join(",\n");
 
         // Look ma, a JSON serializer!
-        println!(
+        writeln!(w, 
             "{{\n\"interfaces\": [\n{interfaces}\n],\n\"inputs\": [\n{inputs}\n],\n\"outputs\": [\n{outputs}\n]\n}}",
-        );
+        ).unwrap();
     }
 }

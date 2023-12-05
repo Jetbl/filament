@@ -4,6 +4,7 @@ use fil_ir as ir;
 use filament::ir_passes::BuildDomination;
 use filament::{cmdline, ir_passes as ip, resolver::Resolver};
 use filament::{log_pass, log_time, pass_pipeline};
+use std::io::Write;
 
 // Prints out the interface for main component in the input program.
 fn run(opts: &cmdline::Opts) -> Result<(), u64> {
@@ -16,7 +17,8 @@ fn run(opts: &cmdline::Opts) -> Result<(), u64> {
         .target(env_logger::Target::Stderr)
         .init();
 
-    let ns = match Resolver::from(opts).parse_namespace() {
+    let mut resolver = Resolver::from(opts);
+    let ns = match resolver.parse_namespace() {
         Ok(mut ns) => {
             ns.toplevel = opts.toplevel.clone();
             ns
@@ -26,6 +28,28 @@ fn run(opts: &cmdline::Opts) -> Result<(), u64> {
             return Err(1);
         }
     };
+
+    if let Some(dep_file) = opts.dump_dep_file.as_ref() {
+        if let Some(out) = &opts.out {
+            let mut deps = resolver
+                .already_imported
+                .iter()
+                .map(|imp| imp.display().to_string())
+                .chain(ns.externs.iter().map(|ext| ext.path.to_string()))
+                .collect::<Vec<_>>();
+            let last = deps.pop();
+
+            let mut file = std::fs::File::create(dep_file).unwrap();
+            write!(&mut file, "{}: ", out.display()).unwrap();
+            for dep in deps {
+                writeln!(&mut file, "{dep} \\").unwrap();
+            }
+            if let Some(dep) = last {
+                writeln!(&mut file, "{dep}").unwrap();
+            }
+        }
+    }
+
     // Initialize the generator
     let mut gen_exec = if ns.requires_gen() {
         if opts.out_dir.is_none()
@@ -66,9 +90,10 @@ fn run(opts: &cmdline::Opts) -> Result<(), u64> {
     }
 
     // Return early if we're asked to dump the interface
-    if opts.dump_interface {
-        ip::DumpInterface::print(&ir);
-        return Ok(());
+    if let Some(dump_file) = opts.dump_interface_file.as_ref() {
+        let file = std::fs::File::create(dump_file).unwrap();
+        ip::DumpInterface::write(&ir, file);
+        // return Ok(());
     }
 
     // Return if we are only checking
@@ -109,8 +134,10 @@ fn gen_verilog(mut ctx: calyx_ir::Context) -> Result<(), calyx_utils::Error> {
         &["canonicalize".to_string()],
         false,
     )?;
+
+    let file = calyx_utils::OutputFile::Stdout;
     let backend = calyx_backend::VerilogBackend;
-    backend.run(ctx, calyx_utils::OutputFile::Stdout)
+    backend.run(ctx, file)
 }
 
 fn main() {
